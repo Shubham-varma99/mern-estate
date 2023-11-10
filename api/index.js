@@ -7,8 +7,8 @@ dotenv.config();
 
 mongoose.connect(process.env.MONGO).then(()=>{
     console.log("Connected to the Mongodb.");
-}).catch((err)=>{
-    console.log(err);
+}).catch((error)=>{
+    console.log(error);
 });
 const app = express();
 
@@ -21,12 +21,12 @@ app.listen(3000,()=>{
 app.use('/api/user',userRouter);
 app.use('/api/auth',authRouter);
 
-app.use((err,req,res,next)=>{
-    const statusCode = err.statusCode || 500;
-    const message = err.message || 'Internal Server Error';
+app.use((error,req,res,next)=>{
+    const statusCode = error.statusCode || 500;
+    const message = error.message || 'Internal Server Error';
     return res.status(statusCode).json({
         success:false,
         statusCode,
         message
-    })
-}) 
+    });
+}); 

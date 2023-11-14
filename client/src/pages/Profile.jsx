@@ -7,16 +7,22 @@ import {
   uploadBytesResumable,
 } from "firebase/storage";
 import { app } from "../firebase.js";
+import {
+  updateUserStart,
+  updateUserFailure,
+  updateUserSuccess,
+} from "../redux/user/userSlice.js";
+import { useDispatch } from "react-redux";
 export default function Profile() {
   const fileRef = useRef(null);
-  const { currentUser } = useSelector((state) => state.user);
+  const { currentUser,loading,error } = useSelector((state) => state.user);
   const [file, setFile] = useState(undefined);
   const [filePerc, setFilePerc] = useState(0);
   const [fileUploadError, setFileUploadError] = useState(false);
   const [formData, setFormData] = useState({});
-  console.log(formData);
-  console.log(filePerc);
-  console.log(fileUploadError);
+  const [updateSuccess,setUpdateSuccess] = useState(false);
+  const dispatch = useDispatch();  
+
   // firebase storage
   // allow read;
   // allow write:if
@@ -51,10 +57,38 @@ export default function Profile() {
       }
     );
   };
+  const handleChange = (evt) => {
+    setFormData({ ...formData, [evt.target.id]: evt.target.value });
+  };
+
+  const handleSubmit = async (evt) => {
+    evt.preventDefault();
+    try {
+      
+      dispatch(updateUserStart());
+      const res = await fetch(`/api/user/update/${currentUser._id}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+    });
+      const data = await res.json();
+      if (data.success === false) {
+        dispatch(updateUserFailure(data.message));
+        return;
+      }
+      dispatch(updateUserSuccess(data));
+      setUpdateSuccess(true);
+    } catch (error) {
+      dispatch(updateUserFailure(error.message));
+    }
+  };
+
   return (
     <div className="p-3 mx-auto max-w-lg">
       <h1 className="text-3xl font-semibold text-center my-7">Profile</h1>
-      <form className="flex flex-col gap-4 ">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 ">
         <input
           onChange={(evt) => setFile(evt.target.files[0])}
           type="file"
@@ -70,7 +104,9 @@ export default function Profile() {
         />
         <p className="text-sm self-center">
           {fileUploadError ? (
-            <span className="text-red-700 ">Error Image Upload(image must be less than 2 mb)</span>
+            <span className="text-red-700 ">
+              Error Image Upload(image must be less than 2 mb)
+            </span>
           ) : filePerc > 0 && filePerc < 100 ? (
             <span className="text-slate-700">{`Uploading ${filePerc}% `}</span>
           ) : filePerc === 100 ? (
@@ -83,31 +119,38 @@ export default function Profile() {
           className="border p-3 rounded-lg"
           type="text"
           placeholder="username"
+          defaultValue={currentUser.username}
+          onChange={handleChange}
           id="username"
         />
         <input
           className="border p-3 rounded-lg"
           type="email"
           placeholder="email"
+          defaultValue={currentUser.email}
+          onChange={handleChange}
           id="email"
         />
         <input
           className="border p-3 rounded-lg"
           type="password"
           placeholder="password"
+          onChange={handleChange}
           id="password"
         />
         <button
-          type="button"
+          disabled={loading}
           className="bg-slate-700 p-3 rounded-lg hover:opacity-95 text-white disabled:opacity-80"
         >
-          Update
+          {loading ? 'loading...': 'Update'}
         </button>
       </form>
       <div className="flex justify-between mt-5">
         <span className="text-red-700 cursor-pointer ">Delete account</span>
         <span className="text-red-700 cursor-pointer">Sign out</span>
       </div>
+      <p className="text-red-700 mt-5">{error ? error:""}</p>
+      <p className="text-green-700 mt-5">{updateSuccess ? "User's Profile updated Successfully":""}</p>
     </div>
   );
 }
